@@ -1,15 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LaunchLog — Universal Space Launch Tracker</title>
-  <meta name="description" content="Track every rocket launch from every space agency on Earth. Live countdowns, mission details, and real-time status for all upcoming and past launches." />
+  <meta name="description"
+    content="Track every rocket launch from every space agency on Earth. Live countdowns, mission details, and real-time status for all upcoming and past launches." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
   <!-- Stars Background -->
   <div class="stars" id="stars"></div>
@@ -18,12 +24,17 @@
   <nav class="nav" id="mainNav">
     <div class="nav-inner">
       <a href="#" class="nav-logo">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L8 8H3l4 4-2 6 7-3 7 3-2-6 4-4h-5z"/></svg>
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L8 8H3l4 4-2 6 7-3 7 3-2-6 4-4h-5z" />
+        </svg>
         <span>LaunchLog</span>
       </a>
       <div class="nav-tabs">
         <button class="nav-tab active" id="tabUpcoming" onclick="switchTab('upcoming')">Upcoming</button>
         <button class="nav-tab" id="tabPast" onclick="switchTab('past')">Past Launches</button>
+        <button class="nav-tab" id="tabTracker" onclick="switchTab('tracker')">
+          <span class="tracker-tab-dot"></span>Live Tracker
+        </button>
       </div>
       <div class="nav-status" id="navStatus">
         <div class="dot dot--live"></div>
@@ -31,6 +42,38 @@
       </div>
     </div>
   </nav>
+
+  <!-- Live Tracker Section -->
+  <section class="tracker-section" id="trackerSection" style="display:none">
+    <div class="tracker-layout">
+      <!-- Sidebar -->
+      <div class="tracker-sidebar">
+        <div class="tracker-sidebar-header">
+          <div class="tracker-sidebar-title">🛰️ Satellites</div>
+          <div class="tracker-sidebar-sub" id="satCount">12 tracked</div>
+        </div>
+        <div class="sat-search-wrap">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8" />
+            <path d="M21 21l-4.35-4.35" />
+          </svg>
+          <input type="text" class="sat-search" placeholder="Search satellites..."
+            oninput="handleSatSearch(this.value)" />
+        </div>
+        <div class="sat-list" id="satList"></div>
+        <div class="tracker-sidebar-footer">
+          <span>ISS position: real-time ✅</span><br>
+          <span>Others: computed from TLE</span>
+        </div>
+      </div>
+      <!-- Map -->
+      <div class="tracker-map-wrap">
+        <div id="satelliteMap"></div>
+        <!-- Satellite Info Panel -->
+        <div class="sat-info-panel" id="satInfoPanel" style="display:none"></div>
+      </div>
+    </div>
+  </section>
 
   <!-- Hero — Next Launch -->
   <header class="hero" id="hero">
@@ -109,8 +152,13 @@
     <!-- Filters -->
     <div class="filters-bar">
       <div class="search-wrap">
-        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-        <input type="text" id="searchInput" class="search-input" placeholder="Search missions, rockets, agencies..." oninput="handleSearch()" />
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2">
+          <circle cx="11" cy="11" r="8" />
+          <path d="M21 21l-4.35-4.35" />
+        </svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search missions, rockets, agencies..."
+          oninput="handleSearch()" />
         <button class="clear-btn" id="clearSearch" onclick="clearSearch()" style="display:none">✕</button>
       </div>
       <div class="filter-group">
@@ -150,7 +198,9 @@
     <!-- Load More -->
     <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
       <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7" />
+        </svg>
         Load More Launches
       </button>
     </div>
@@ -166,7 +216,8 @@
     <div class="error-state" id="errorState" style="display:none">
       <div class="error-icon">⚠️</div>
       <h3>Unable to reach launch data</h3>
-      <p>The API may be temporarily unavailable or rate-limited (15 req/hour free tier). Please try again in a moment.</p>
+      <p>The API may be temporarily unavailable or rate-limited (15 req/hour free tier). Please try again in a moment.
+      </p>
       <button class="load-more-btn" onclick="retryLoad()">Retry</button>
     </div>
 
@@ -182,10 +233,15 @@
 
   <!-- Footer -->
   <footer class="footer">
-    <p>Powered by <a href="https://thespacedevs.com/" target="_blank" rel="noopener">TheSpaceDevs Launch Library 2</a> — Free &amp; open data.</p>
+    <p>Powered by <a href="https://thespacedevs.com/" target="_blank" rel="noopener">TheSpaceDevs Launch Library 2</a> —
+      Free &amp; open data.</p>
     <p class="footer-sub">Data updates live · No API key required</p>
   </footer>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.1.3/satellite.min.js"></script>
+  <script src="tracker.js"></script>
   <script src="app.js"></script>
 </body>
+
 </html>

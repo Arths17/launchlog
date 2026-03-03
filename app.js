@@ -497,13 +497,32 @@ function retryLoad() {
 
 // ── Tab switch ────────────────────────────────────────
 function switchTab(tab) {
+  const prevTab = state.tab;
   state.tab = tab;
+
   document.getElementById('tabUpcoming').classList.toggle('active', tab === 'upcoming');
   document.getElementById('tabPast').classList.toggle('active', tab === 'past');
+  document.getElementById('tabTracker').classList.toggle('active', tab === 'tracker');
 
-  // Hero is only relevant for upcoming
-  document.getElementById('hero').style.display = tab === 'upcoming' ? '' : 'none';
-  document.querySelector('.stats-bar').style.display = tab === 'upcoming' ? '' : 'none';
+  // Pause tracker intervals when leaving tracker tab
+  if (prevTab === 'tracker' && tab !== 'tracker') {
+    pauseTracker();
+  }
+
+  const isTracker = tab === 'tracker';
+  const isLaunchTab = !isTracker;
+
+  // Show / hide sections
+  document.getElementById('trackerSection').style.display = isTracker ? 'block' : 'none';
+  document.getElementById('hero').style.display = (tab === 'upcoming') ? '' : 'none';
+  document.querySelector('.stats-bar').style.display = (tab === 'upcoming') ? '' : 'none';
+  document.querySelector('.main').style.display = isLaunchTab ? '' : 'none';
+  document.querySelector('.footer').style.display = isLaunchTab ? '' : 'none';
+
+  if (isTracker) {
+    resumeTracker();
+    return;
+  }
 
   document.getElementById('sectionTitle').textContent = tab === 'upcoming' ? 'Upcoming Launches' : 'Past Launches';
   resetFilters();
@@ -522,6 +541,7 @@ function switchTab(tab) {
 
   loadLaunches(false);
 }
+
 
 // ── Modal ─────────────────────────────────────────────
 function openModal(launchId) {
