@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LaunchLog — Universal Space Launch Tracker</title>
+  <meta name="description" content="Track every rocket launch from every space agency on Earth. Live countdowns, mission details, and real-time status for all upcoming and past launches." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Stars Background -->
+  <div class="stars" id="stars"></div>
+
+  <!-- Navigation -->
+  <nav class="nav" id="mainNav">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L8 8H3l4 4-2 6 7-3 7 3-2-6 4-4h-5z"/></svg>
+        <span>LaunchLog</span>
+      </a>
+      <div class="nav-tabs">
+        <button class="nav-tab active" id="tabUpcoming" onclick="switchTab('upcoming')">Upcoming</button>
+        <button class="nav-tab" id="tabPast" onclick="switchTab('past')">Past Launches</button>
+      </div>
+      <div class="nav-status" id="navStatus">
+        <div class="dot dot--live"></div>
+        <span id="liveText">Loading...</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero — Next Launch -->
+  <header class="hero" id="hero">
+    <div class="hero-inner">
+      <div class="hero-label">
+        <div class="dot dot--pulse"></div>
+        NEXT LAUNCH
+      </div>
+
+      <div class="hero-content">
+        <div class="hero-text">
+          <h1 class="hero-title" id="heroTitle">Loading...</h1>
+          <p class="hero-subtitle" id="heroSubtitle"></p>
+          <div class="hero-meta" id="heroMeta"></div>
+          <div class="hero-status" id="heroStatus"></div>
+        </div>
+
+        <div class="hero-countdown-wrap">
+          <div class="countdown" id="countdown">
+            <div class="countdown-unit">
+              <span class="countdown-num" id="cdDays">--</span>
+              <span class="countdown-label">Days</span>
+            </div>
+            <div class="countdown-sep">:</div>
+            <div class="countdown-unit">
+              <span class="countdown-num" id="cdHours">--</span>
+              <span class="countdown-label">Hrs</span>
+            </div>
+            <div class="countdown-sep">:</div>
+            <div class="countdown-unit">
+              <span class="countdown-num" id="cdMins">--</span>
+              <span class="countdown-label">Min</span>
+            </div>
+            <div class="countdown-sep">:</div>
+            <div class="countdown-unit">
+              <span class="countdown-num" id="cdSecs">--</span>
+              <span class="countdown-label">Sec</span>
+            </div>
+          </div>
+          <p class="hero-net" id="heroNet"></p>
+        </div>
+      </div>
+
+      <div class="hero-rocket-img" id="heroImg"></div>
+    </div>
+  </header>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stats-inner">
+      <div class="stat">
+        <span class="stat-num" id="statTotal">—</span>
+        <span class="stat-label">Upcoming Launches</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="statYear">—</span>
+        <span class="stat-label">Launches This Year</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="statAgencies">—</span>
+        <span class="stat-label">Active Agencies</span>
+      </div>
+      <div class="stat-divider"></div>
+      <div class="stat">
+        <span class="stat-num" id="statOrbital">—</span>
+        <span class="stat-label">Orbital Attempts (Year)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Filters -->
+    <div class="filters-bar">
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search missions, rockets, agencies..." oninput="handleSearch()" />
+        <button class="clear-btn" id="clearSearch" onclick="clearSearch()" style="display:none">✕</button>
+      </div>
+      <div class="filter-group">
+        <select id="filterAgency" class="filter-select" onchange="applyFilters()">
+          <option value="">All Agencies</option>
+        </select>
+        <select id="filterOrbit" class="filter-select" onchange="applyFilters()">
+          <option value="">All Orbits</option>
+          <option value="LEO">LEO</option>
+          <option value="GEO">GEO</option>
+          <option value="SSO">SSO</option>
+          <option value="MEO">MEO</option>
+          <option value="TLI">TLI (Moon)</option>
+          <option value="HEO">HEO</option>
+          <option value="Sub">Suborbital</option>
+        </select>
+        <button class="filter-reset" onclick="resetFilters()">Reset</button>
+      </div>
+    </div>
+
+    <!-- Launch Grid -->
+    <div class="section-header">
+      <h2 class="section-title" id="sectionTitle">Upcoming Launches</h2>
+      <span class="section-count" id="sectionCount"></span>
+    </div>
+
+    <div class="launches-grid" id="launchGrid">
+      <!-- Skeleton loaders -->
+      <div class="launch-card skeleton"></div>
+      <div class="launch-card skeleton"></div>
+      <div class="launch-card skeleton"></div>
+      <div class="launch-card skeleton"></div>
+      <div class="launch-card skeleton"></div>
+      <div class="launch-card skeleton"></div>
+    </div>
+
+    <!-- Load More -->
+    <div class="load-more-wrap" id="loadMoreWrap" style="display:none">
+      <button class="load-more-btn" id="loadMoreBtn" onclick="loadMore()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 12a11.05 11.05 0 0 0-22 0zm-5 7a3 3 0 0 1-6 0v-7"/></svg>
+        Load More Launches
+      </button>
+    </div>
+
+    <!-- No Results -->
+    <div class="no-results" id="noResults" style="display:none">
+      <div class="no-results-icon">🔭</div>
+      <h3>No launches found</h3>
+      <p>Try adjusting your filters or search query.</p>
+    </div>
+
+    <!-- Error State -->
+    <div class="error-state" id="errorState" style="display:none">
+      <div class="error-icon">⚠️</div>
+      <h3>Unable to reach launch data</h3>
+      <p>The API may be temporarily unavailable or rate-limited (15 req/hour free tier). Please try again in a moment.</p>
+      <button class="load-more-btn" onclick="retryLoad()">Retry</button>
+    </div>
+
+  </main>
+
+  <!-- Launch Detail Modal -->
+  <div class="modal-overlay" id="modalOverlay" onclick="closeModal()">
+    <div class="modal" id="modal" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-body" id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>Powered by <a href="https://thespacedevs.com/" target="_blank" rel="noopener">TheSpaceDevs Launch Library 2</a> — Free &amp; open data.</p>
+    <p class="footer-sub">Data updates live · No API key required</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
