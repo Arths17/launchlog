@@ -4,7 +4,7 @@
    ===================================================== */
 
 const API = 'https://ll.thespacedevs.com/2.2.0';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 // ── State ────────────────────────────────────────────
 let state = {
@@ -16,6 +16,8 @@ let state = {
   nextLaunch: null,
   agencySet: new Set(),
   loading: false,
+  pastCache: null,          // preloaded past launches
+  pastNextUrl: null,
 };
 
 // ── Country Code → Flag emoji ────────────────────────
@@ -43,14 +45,14 @@ function statusBadge(status) {
   const abbrev = status?.abbrev || '';
   const name = status?.name || 'Unknown';
   const map = {
-    'Go':       ['badge--go',      '● GO'],
-    'Success':  ['badge--success', '✓ SUCCESS'],
-    'TBD':      ['badge--tbd',     '? TBD'],
-    'TBC':      ['badge--tbd',     '? TBC'],
-    'Hold':     ['badge--hold',    '⏸ HOLD'],
-    'Failure':  ['badge--fail',    '✕ FAILURE'],
+    'Go': ['badge--go', '● GO'],
+    'Success': ['badge--success', '✓ SUCCESS'],
+    'TBD': ['badge--tbd', '? TBD'],
+    'TBC': ['badge--tbd', '? TBC'],
+    'Hold': ['badge--hold', '⏸ HOLD'],
+    'Failure': ['badge--fail', '✕ FAILURE'],
     'Partial Failure': ['badge--fail', '⚠ PARTIAL FAIL'],
-    'In Flight':['badge--live',    '🔴 LIVE'],
+    'In Flight': ['badge--live', '🔴 LIVE'],
   };
   const [cls, label] = map[abbrev] || ['badge--tbd', name.toUpperCase()];
   return `<span class="badge ${cls}">${label}</span>`;
@@ -94,10 +96,10 @@ function generateStars() {
     const size = Math.random() * 2.5 + 0.5;
     star.style.cssText = `
       width:${size}px; height:${size}px;
-      left:${Math.random()*100}%;
-      top:${Math.random()*100}%;
-      --dur:${3 + Math.random()*5}s;
-      --delay:${Math.random()*5}s;
+      left:${Math.random() * 100}%;
+      top:${Math.random() * 100}%;
+      --dur:${3 + Math.random() * 5}s;
+      --delay:${Math.random() * 5}s;
     `;
     frag.appendChild(star);
   }
@@ -116,7 +118,7 @@ function getCached(key) {
 }
 
 function setCache(key, data) {
-  try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch {}
+  try { sessionStorage.setItem(key, JSON.stringify({ ts: Date.now(), data })); } catch { }
 }
 
 // ── Fetch launches ────────────────────────────────────
@@ -125,10 +127,27 @@ async function fetchLaunches(url) {
   if (cached) return cached;
 
   const res = await fetch(url);
+  if (res.status === 429) {
+    const err = new Error('RATE_LIMITED');
+    err.rateLimited = true;
+    throw err;
+  }
   if (!res.ok) throw new Error(`API error: ${res.status}`);
   const data = await res.json();
   setCache(url, data);
   return data;
+}
+
+// ── Silently preload past launches in background ──────
+async function preloadPastLaunches() {
+  try {
+    const url = `${API}/launch/past/?limit=20&ordering=-net`;
+    const data = await fetchLaunches(url);
+    state.pastCache = data.results || [];
+    state.pastNextUrl = data.next;
+  } catch {
+    // Silent — tab will handle errors on demand
+  }
 }
 
 // ── Build agency filter dropdown ──────────────────────
@@ -404,6 +423,12 @@ async function loadLaunches(append = false) {
   } catch (err) {
     console.error('Launch fetch error:', err);
     document.getElementById('launchGrid').innerHTML = '';
+    const errMsg = errorEl.querySelector('p');
+    if (err.rateLimited) {
+      errMsg.textContent = 'Rate limit reached (15 req/hour on the free tier). Please wait a minute then click Retry.';
+    } else {
+      errMsg.textContent = 'The API may be temporarily unavailable or rate-limited (15 req/hour free tier). Please try again in a moment.';
+    }
     errorEl.style.display = 'block';
     loadMoreWrap.style.display = 'none';
   } finally {
@@ -482,6 +507,19 @@ function switchTab(tab) {
 
   document.getElementById('sectionTitle').textContent = tab === 'upcoming' ? 'Upcoming Launches' : 'Past Launches';
   resetFilters();
+
+  // If past launches were preloaded, serve instantly without an API call
+  if (tab === 'past' && state.pastCache) {
+    state.launches = state.pastCache;
+    state.filtered = [...state.launches];
+    state.nextUrl = state.pastNextUrl;
+    document.getElementById('launchGrid').innerHTML = '';
+    document.getElementById('errorState').style.display = 'none';
+    document.getElementById('loadMoreWrap').style.display = state.nextUrl ? 'flex' : 'none';
+    applyFilters();
+    return;
+  }
+
   loadLaunches(false);
 }
 
@@ -608,4 +646,6 @@ setInterval(updateMiniCountdowns, 5000);
 (async function init() {
   generateStars();
   await loadLaunches(false);
+  // Preload past launches quietly 2s after startup so tab switch is instant
+  setTimeout(preloadPastLaunches, 2000);
 })();
